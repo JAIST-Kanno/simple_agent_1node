@@ -30,8 +30,8 @@ func main() {
 		agents		uint64
 	)
 	flag.Float64Var(&wall, "wall", 100.0, "limit x-max, y-max(min = 0, default = 100.0)")
-	flag.Uint64Var(&timerSec, "time", 20, "exec time length before exit by sec (default = 50)")
-	flag.Uint64Var(&agents, "agents", 60, "number of agents(default = 30)")
+	flag.Uint64Var(&timerSec, "time", 20, "exec time length before exit by sec (default = 20)")
+	flag.Uint64Var(&agents, "agents", 120, "number of agents(default = 120)")
 	flag.Parse()
 
 	currentSlice := make ([]simNum, agents);
@@ -69,7 +69,7 @@ func main() {
 			}
 			futureSlice[i] = simNum{x: futureX, y: futureY, direction: futureDirection, speed: currentSlice[i].speed, viewAngle: currentSlice[i].viewAngle, viewR: currentSlice[i].viewR}
 		}
-		print("simulation step:", loop)
+		println("simulation step:", loop)
 		for i := 0; i < len(currentSlice); i++ {
 			shortest := -1
 			shortestR := math.MaxFloat64
