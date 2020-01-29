@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	crand "crypto/rand"
 	"flag"
 	"math"
@@ -55,7 +56,7 @@ func main() {
 	go func () {
 		timer1 := time.NewTimer(time.Duration(timerSec) * time.Second)
 		<- timer1.C
-		println("sps = ", float64(doneLoop) / float64(timerSec))
+		fmt.Printf("%f\n",float64(doneLoop) / float64(timerSec))
 		os.Exit(0)
 	}()
 
