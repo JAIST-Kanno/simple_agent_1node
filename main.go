@@ -26,12 +26,12 @@ func main() {
 	var (
 		chooseRight = rand.Float64()
 		wall        float64
-		timerSec	uint64
-		agents		uint64
+		timerSec	int
+		agents		uint
 	)
 	flag.Float64Var(&wall, "wall", 100.0, "limit x-max, y-max(min = 0, default = 100.0)")
-	flag.Uint64Var(&timerSec, "time", 20, "exec time length before exit by sec (default = 20)")
-	flag.Uint64Var(&agents, "agents", 120, "number of agents(default = 120)")
+	flag.IntVar(&timerSec, "time", 20, "exec time length before exit by sec (default = 20)")
+	flag.UintVar(&agents, "agents", 120, "number of agents(default = 120)")
 	flag.Parse()
 
 	currentSlice := make ([]simNum, agents);
@@ -49,19 +49,28 @@ func main() {
 
 	nextSlice:= make([]simNum, agents)
 
-	go exitTimer(timerSec)
+	doneLoop := 0
+	go func () {
+		timer1 := time.NewTimer(time.Duration(timerSec) * time.Second)
+		<- timer1.C
+		println("sps = ", float64(doneLoop) / float64(timerSec))
+		os.Exit(0)
+	}()
+
 	for loop := 0; ; loop++ {
+		doneLoop = loop
+		//println("simulation step:", loop)
 		for i := 0; i < len(futureSlice); i++ {
 			futureX := currentSlice[i].x + currentSlice[i].speed * math.Cos(currentSlice[i].direction)
 			futureY := currentSlice[i].y + currentSlice[i].speed * math.Sin(currentSlice[i].direction)
 			futureDirection := currentSlice[i].direction
-			for loop := 0 ;; loop++ {
+			for j := 0 ;; j++ {
 				futureX, futureDirection, _ = boundCheck(futureX, wall, futureDirection, true, 0)
 				if futureX == math.Mod(futureX, wall) {
 					break
 				}
 			}
-			for loop := 0 ;; loop++ {
+			for j := 0 ;; j++ {
 				futureY, futureDirection, _ = boundCheck(futureY, wall, futureDirection, false, 0)
 				if futureY == math.Mod(futureY, wall) {
 					break
@@ -69,7 +78,7 @@ func main() {
 			}
 			futureSlice[i] = simNum{x: futureX, y: futureY, direction: futureDirection, speed: currentSlice[i].speed, viewAngle: currentSlice[i].viewAngle, viewR: currentSlice[i].viewR}
 		}
-		println("simulation step:", loop)
+
 		for i := 0; i < len(currentSlice); i++ {
 			shortest := -1
 			shortestR := math.MaxFloat64
@@ -105,13 +114,13 @@ func main() {
 				}
 				nextSlice[i].x = currentSlice[i].x + currentSlice[i].speed * math.Cos(futureSlice[i].direction)
 				nextSlice[i].y = currentSlice[i].y + currentSlice[i].speed * math.Sin(futureSlice[i].direction)
-				for loop := 0 ;; loop++ {
+				for j := 0 ;; j++ {
 					nextSlice[i].x, nextSlice[i].direction, _ = boundCheck(nextSlice[i].x, wall, nextSlice[i].direction, true, 0)
 					if nextSlice[i].x == math.Mod(nextSlice[i].x, wall) {
 						break
 					}
 				}
-				for loop := 0 ;; loop++ {
+				for k := 0 ;; k++ {
 					nextSlice[i].y, nextSlice[i].direction, _ = boundCheck(nextSlice[i].y, wall, nextSlice[i].direction, false, 0)
 					if nextSlice[i].y == math.Mod(nextSlice[i].y, wall) {
 						break
@@ -123,12 +132,6 @@ func main() {
 		copy(currentSlice, nextSlice)
 	}
 	runtime.Goexit()
-}
-
-func exitTimer(timeSec uint64) {
-	timer1 := time.NewTimer(time.Duration(timeSec) * time.Second)
-	<- timer1.C
-	os.Exit(0)
 }
 
 func boundCheck(loc float64, wall float64, direction float64, isX bool, bound int) (float64, float64, int) {
