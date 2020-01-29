@@ -34,6 +34,8 @@ func main() {
 	flag.UintVar(&agents, "agents", 120, "number of agents(default = 120)")
 	flag.Parse()
 
+	mtVars := make(chan int, agents)
+	mtSync := make(chan int, agents)
 	currentSlice := make ([]simNum, agents);
 	for i := 0; i < len(currentSlice); i++ {
 		currentX := rand.Float64() * wall
@@ -60,74 +62,90 @@ func main() {
 	for loop := 0; ; loop++ {
 		doneLoop = loop
 		//println("simulation step:", loop)
-		for i := 0; i < len(futureSlice); i++ {
-			futureX := currentSlice[i].x + currentSlice[i].speed * math.Cos(currentSlice[i].direction)
-			futureY := currentSlice[i].y + currentSlice[i].speed * math.Sin(currentSlice[i].direction)
-			futureDirection := currentSlice[i].direction
-			for j := 0 ;; j++ {
-				futureX, futureDirection, _ = boundCheck(futureX, wall, futureDirection, true, 0)
-				if futureX == math.Mod(futureX, wall) {
-					break
-				}
-			}
-			for j := 0 ;; j++ {
-				futureY, futureDirection, _ = boundCheck(futureY, wall, futureDirection, false, 0)
-				if futureY == math.Mod(futureY, wall) {
-					break
-				}
-			}
-			futureSlice[i] = simNum{x: futureX, y: futureY, direction: futureDirection, speed: currentSlice[i].speed, viewAngle: currentSlice[i].viewAngle, viewR: currentSlice[i].viewR}
+		for i := 0; i < len(futureSlice); i++{
+			mtVars <- i
 		}
-
-		for i := 0; i < len(currentSlice); i++ {
-			shortest := -1
-			shortestR := math.MaxFloat64
-			for j := 0; j < len(currentSlice); j++ {
-				if i == j {
-					continue
+		for i := 0; i < len(futureSlice); i++ {
+			go func() {
+				j := <- mtVars
+				futureX := currentSlice[j].x + currentSlice[j].speed * math.Cos(currentSlice[j].direction)
+				futureY := currentSlice[j].y + currentSlice[j].speed * math.Sin(currentSlice[j].direction)
+				futureDirection := currentSlice[j].direction
+				for k := 0 ;; k++ {
+					futureX, futureDirection, _ = boundCheck(futureX, wall, futureDirection, true, 0)
+					if futureX == math.Mod(futureX, wall) {
+						break
+					}
 				}
-				diffX := currentSlice[j].x - currentSlice[i].x
-				diffY := currentSlice[j].y - currentSlice[i].y
-				r := math.Pow(diffX, 2) + math.Pow(diffY, 2)
-				if r <= math.Pow(currentSlice[i].viewR, 2) {
-					angle := math.Atan(diffY / diffX)
-					if (currentSlice[i].direction - currentSlice[i].viewAngle/2) <= angle {
-						if angle <= (currentSlice[i].direction + currentSlice[i].viewAngle/2) {
-							diffX = futureSlice[j].x - futureSlice[i].x
-							diffY = futureSlice[j].y - futureSlice[i].y
-							r = math.Pow(diffX, 2) + math.Pow(diffY, 2)
-							if r < shortestR {
-								shortestR = r
-								shortest = j
+				for k:= 0 ;; k++ {
+					futureY, futureDirection, _ = boundCheck(futureY, wall, futureDirection, false, 0)
+					if futureY == math.Mod(futureY, wall) {
+						break
+					}
+				}
+				futureSlice[j] = simNum{x: futureX, y: futureY, direction: futureDirection, speed: currentSlice[j].speed, viewAngle: currentSlice[j].viewAngle, viewR: currentSlice[j].viewR}
+				mtSync <- j
+			}()
+		}
+		for i := 0; i < len(currentSlice); i++ {
+			<- mtSync
+			mtVars <- i
+		}
+		for i := 0; i < len(currentSlice); i++ {
+			go func() {
+				j := <- mtVars
+				shortest := -1
+				shortestR := math.MaxFloat64
+				for k := 0; k < len(currentSlice); k++ {
+					if j == k {
+						continue
+					}
+					diffX := currentSlice[k].x - currentSlice[k].x
+					diffY := currentSlice[k].y - currentSlice[k].y
+					r := math.Pow(diffX, 2) + math.Pow(diffY, 2)
+					if r <= math.Pow(currentSlice[j].viewR, 2) {
+						angle := math.Atan(diffY / diffX)
+						if (currentSlice[j].direction - currentSlice[j].viewAngle/2) <= angle {
+							if angle <= (currentSlice[j].direction + currentSlice[j].viewAngle/2) {
+								diffX = futureSlice[k].x - futureSlice[j].x
+								diffY = futureSlice[k].y - futureSlice[j].y
+								r = math.Pow(diffX, 2) + math.Pow(diffY, 2)
+								if r < shortestR {
+									shortestR = r
+									shortest = k
+								}
 							}
 						}
 					}
 				}
-			}
-			if shortest == -1 {
-				nextSlice[i] = futureSlice[i]
-			} else {
-				if chooseRight > rand.Float64() {
-					nextSlice[i].direction = currentSlice[i].direction - math.Pi*rand.Float64()/3.0
+				if shortest == -1 {
+					nextSlice[j] = futureSlice[j]
 				} else {
-					nextSlice[i].direction = currentSlice[i].direction + math.Pi*rand.Float64()/3.0
-				}
-				nextSlice[i].x = currentSlice[i].x + currentSlice[i].speed * math.Cos(futureSlice[i].direction)
-				nextSlice[i].y = currentSlice[i].y + currentSlice[i].speed * math.Sin(futureSlice[i].direction)
-				for j := 0 ;; j++ {
-					nextSlice[i].x, nextSlice[i].direction, _ = boundCheck(nextSlice[i].x, wall, nextSlice[i].direction, true, 0)
-					if nextSlice[i].x == math.Mod(nextSlice[i].x, wall) {
-						break
+					if chooseRight > rand.Float64() {
+						nextSlice[j].direction = currentSlice[j].direction - math.Pi*rand.Float64()/3.0
+					} else {
+						nextSlice[j].direction = currentSlice[j].direction + math.Pi*rand.Float64()/3.0
+					}
+					nextSlice[j].x = currentSlice[j].x + currentSlice[j].speed * math.Cos(futureSlice[j].direction)
+					nextSlice[j].y = currentSlice[j].y + currentSlice[j].speed * math.Sin(futureSlice[j].direction)
+					for k := 0 ;; k++ {
+						nextSlice[j].x, nextSlice[j].direction, _ = boundCheck(nextSlice[j].x, wall, nextSlice[j].direction, true, 0)
+						if nextSlice[j].x == math.Mod(nextSlice[j].x, wall) {
+							break
+						}
+					}
+					for k := 0 ;; k++ {
+						nextSlice[j].y, nextSlice[j].direction, _ = boundCheck(nextSlice[j].y, wall, nextSlice[j].direction, false, 0)
+						if nextSlice[j].y == math.Mod(nextSlice[j].y, wall) {
+							break
+						}
 					}
 				}
-				for k := 0 ;; k++ {
-					nextSlice[i].y, nextSlice[i].direction, _ = boundCheck(nextSlice[i].y, wall, nextSlice[i].direction, false, 0)
-					if nextSlice[i].y == math.Mod(nextSlice[i].y, wall) {
-						break
-					}
-				}
-			}
-
+				mtSync <- j
+			}()
+		}
+		for i := 0; i < len(currentSlice); i++ {
+			<- mtSync
 		}
 		copy(currentSlice, nextSlice)
 	}
